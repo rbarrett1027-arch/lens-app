@@ -133,7 +133,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',ledger:{},polife:200000,challenge:'',missing:'',
     duty:{pick:'',when:'',will:'',committed:false,k:{},why:{},repl:{}},twist:'',
     virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:''}};}
-  var S = blank(), REL = {}, RESP = [], SID = '', newArm = false;
+  var S = blank(), REL = {}, RESP = [], SID = '', newArm = false, gateMsg = false;
   var db=null, userCap=null, dl=null, myId=null, canEdit=false, hasState=false, noWrite=false;
   var mode = (location.hash==='#projector')?'proj':'student';
   var step = 0, saveStatus='', clearArm=false, subbed=false, relErr='', booted=false, standalone=false, connectFail=false, started=false, showLogin=false, loginMsg='';
@@ -235,8 +235,8 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     '<label for="dpick">My duty<select id="dpick" data-bind="duty.pick"><option value="">Choose one</option>'+DUTIES.map(function(o){return '<option'+(d.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
     '<label for="dwhen">When<input type="text" id="dwhen" data-bind="duty.when" value="'+esc(d.when)+'" autocomplete="off"></label>'+
     '<label for="dwill">I will<input type="text" id="dwill" data-bind="duty.will" value="'+esc(d.will)+'" autocomplete="off"></label>'+
-    '<div class="row"><button class="btn" data-act="commit"'+((d.pick&&d.when&&d.will)?'':' disabled')+'>'+(d.committed?'Committed':'Commit to this duty')+'</button></div>';
-    if(!d.committed) return h;
+    '<div class="row"><button class="btn" data-act="commit"'+((d.pick&&String(d.when||'').trim()&&String(d.will||'').trim())?'':' disabled')+'>'+(d.committed?'Committed':'Commit to this duty')+'</button></div>';
+    if(!d.committed) return h+'<p class="small muted" id="gatehint">'+(gateMsg?'Commit to a duty before moving on. Fill in all three boxes, then press the button.':'Fill in all three boxes, then press the button to see the pressure facts.')+'</p>';
     FACTS.forEach(function(f){
       h+='<div class="stack"><h3>New fact</h3><p>'+esc(f.t)+'</p>';
       if(!open(f.k)) h+=lockBox('Wait for the next fact.');
@@ -279,7 +279,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
 
   function studentView(){
     var h='<div class="steps" role="tablist">'+STEPS.map(function(n,i){return '<button data-act="go" data-val="'+i+'"'+(i===step?' aria-current="step"':'')+'>'+(i+1)+'. '+esc(n)+'</button>';}).join('')+'</div>';
-    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+(step===STEPS.length-1?' disabled':'')+'>Next</button></div></div>';
+    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+((step===STEPS.length-1||(step===3&&!S.duty.committed))?' disabled':'')+'>Next</button></div></div>';
     return h;
   }
 
@@ -343,7 +343,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     var b=ev.target.closest('[data-act]'); if(!b||b.disabled) return;
     var a=b.getAttribute('data-act'), v=b.getAttribute('data-val'), k=b.getAttribute('data-key');
     if(a==='mode'){mode=v; try{history.replaceState(null,'',v==='proj'?'#projector':'#');}catch(e){} if(mode==='proj') subscribeResp(); render();}
-    else if(a==='go'){step=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); render(); window.scrollTo(0,0);}
+    else if(a==='go'){var t=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); if(t>3&&!S.duty.committed){step=3; gateMsg=true;} else {step=t; gateMsg=false;} render(); window.scrollTo(0,0);}
     else if(a==='vote'){S[k]=v; schedule(); render();}
     else if(a==='cell'){S.ledger[k]=parseInt(v,10); schedule(); render();}
     else if(a==='commit'){S.duty.committed=true; schedule(); render();}
@@ -366,6 +366,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     setPath(S,p,val);
     if(p==='polife'){ $('#lifeval').textContent=money(val); $('#calcOut').innerHTML=calcHtml(val); }
     if(p==='virtue.mean') S.virtue.placed=true;
+    if(p.indexOf('duty.')===0 && !S.duty.committed){
+      var cb=document.querySelector('[data-act="commit"]');
+      if(cb) cb.disabled=!(String(S.duty.pick||'').trim()&&String(S.duty.when||'').trim()&&String(S.duty.will||'').trim());
+    }
     if(el.tagName==='SELECT') { schedule(); render(); return; }
     schedule();
   }
