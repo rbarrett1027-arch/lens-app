@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lens Lab</title>
+<style>:root{color-scheme:light}[hidden]{display:none!important}img{max-width:100%}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column of steps for phones; a wide read-only dashboard for the projector. */
+:root{
+  --bg:#F5F7FA; --surface:#FFFFFF; --ink:#172033; --muted:#566074; --line:#D9DFE8;
+  --accent:#1F3864; --on-accent:#FFFFFF; --soft:#E6ECF6; --warn:#8A2B2B; --warn-soft:#F4E7E7; --good:#2F6B4F;
+  --f-display:'Newsreader',Georgia,'Times New Roman',serif;
+  --f-body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1522; --surface:#172033; --ink:#E8ECF3; --muted:#9AA6BA; --line:#2A3550;
+    --accent:#8FB0F0; --on-accent:#0F1522; --soft:#1E2B48; --warn:#E0A0A0; --warn-soft:#3A2327; --good:#7CC4A0; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1522; --surface:#172033; --ink:#E8ECF3; --muted:#9AA6BA; --line:#2A3550;
+  --accent:#8FB0F0; --on-accent:#0F1522; --soft:#1E2B48; --warn:#E0A0A0; --warn-soft:#3A2327; --good:#7CC4A0; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:720px;margin-inline:auto}
+.wrap.wide{max-width:1100px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;line-height:1.2}
+h1{font-size:28px} h2{font-size:22px} h3{font-size:17px}
+p{margin:0}
+.top{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--ink);font:inherit;padding:8px 14px;cursor:pointer;min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.steps{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px}
+.steps button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;min-height:36px}
+.steps button[aria-current="step"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.note{background:var(--soft);border-radius:8px;padding:12px 14px}
+.warn{background:var(--warn-soft);color:var(--ink);border-radius:8px;padding:12px 14px}
+.lock{border:1px dashed var(--line);border-radius:8px;padding:14px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:8px;padding:10px 16px;font:inherit;font-weight:500;cursor:pointer;min-height:44px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.choice{flex:1 1 120px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:12px;font:inherit;cursor:pointer;min-height:48px;text-align:center}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:var(--soft);font-weight:600}
+label{display:flex;flex-direction:column;gap:4px;font-weight:500}
+input[type=text],input[type=password],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-height:44px}
+textarea{min-height:84px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num,th.num{text-align:right}
+.scale{display:flex;gap:3px}
+.scale button{width:30px;height:34px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;font:inherit;font-size:12px;cursor:pointer;padding:0}
+.scale button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.big{font-family:var(--f-display);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.pair{grid-template-columns:1fr}}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
+.status{font-size:12px;color:var(--muted)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.bar{display:flex;height:34px;border-radius:6px;overflow:hidden;background:var(--line)}
+.bar span{display:flex;align-items:center;padding-inline:8px;color:var(--on-accent);font-size:13px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden}
+.bar .a{background:var(--accent)} .bar .b{background:var(--warn)}
+.kv{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-variant-numeric:tabular-nums}
+.hist{display:flex;align-items:flex-end;gap:4px;height:120px;border-bottom:1px solid var(--line)}
+.hist div{flex:1;background:var(--accent);min-height:2px;border-radius:3px 3px 0 0}
+.histlab{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.release{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+ul.quotes{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+button.link{background:none;border:0;color:var(--accent);text-decoration:underline;font:inherit;padding:0;cursor:pointer;min-height:32px}
+footer{margin-top:20px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion: no-preference){.bar span{transition:flex-basis .3s}}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div id="root" class="wrap"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ================= PASTE YOUR FIREBASE CONFIG HERE (see SETUP.md, step 5) ================= */
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBqv3BrBqDcMk6ysotdL4HGYBBt3_TM9vA",
+    authDomain: "lens-app-36f07.firebaseapp.com",
+    projectId: "lens-app-36f07",
+    appId: "1:291626777106:web:620de52c223481951ef6cb"
+  };
+  /* ========================================================================================== */
+  var $ = function(s){return document.querySelector(s);};
+  var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+
+  /* ---------- case numbers (from the Ford memo as reported in Week 6 materials) ---------- */
+  var N = {deaths:180, injuries:180, cars:2100, vInj:67000, vCar:700, fleet:12500000, perCar:11, memoLife:200000};
+  var COST = N.fleet*N.perCar;                         // 137,500,000
+  var NONLIFE = N.injuries*N.vInj + N.cars*N.vCar;    // 13,530,000
+  function benefit(life){return N.deaths*life + NONLIFE;}
+  function breakEven(){return (COST-NONLIFE)/N.deaths;}
+  function money(n){
+    if(Math.abs(n)>=1e6) return '$'+(n/1e6).toFixed(n>=1e7?1:2).replace(/\.?0+$/,'')+'M';
+    return '$'+Math.round(n).toLocaleString('en-US');
+  }
+
+  var HOLDERS = [['cust','Customers who could be burned'],['fam','Families of victims'],['share','Ford shareholders'],['emp','Ford employees, including the engineer'],['deal','Dealers'],['pub','Regulators and the public']];
+  var DUTIES = ['Honesty: tell customers and regulators the truth','Protect people from harm','Loyalty to my employer','Fairness: treat people as I would want to be treated','Keep my promises','Provide for my family and myself'];
+  var FACTS = [
+    {k:'f1', t:'The fix turns out to cost $1,000 per car, not $11. Your manager says that changes everything.'},
+    {k:'f2', t:'Your boss says stay quiet or lose your job.'},
+    {k:'f3', t:'Every other automaker ships the same design and none of them are penalized.'}
+  ];
+  var VIRTUES = ['Prudence (good judgment about risk)','Justice (giving people what they are owed)','Courage (acting despite fear or cost)','Temperance (restraint under pressure to hurry)'];
+  var STEPS = ['Gut check','The memo','Utilitarian','Duty','Virtue','Exit ticket'];
+
+  /* ---------- state ---------- */
+  function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',ledger:{},polife:200000,challenge:'',missing:'',
+    duty:{pick:'',when:'',will:'',committed:false,k:{},why:{},repl:{}},twist:'',
+    virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:''}};}
+  var S = blank(), REL = {}, RESP = [], SID = '', newArm = false;
+  var db=null, userCap=null, dl=null, myId=null, canEdit=false, hasState=false, noWrite=false;
+  var mode = (location.hash==='#projector')?'proj':'student';
+  var step = 0, saveStatus='', clearArm=false, subbed=false, relErr='', booted=false, standalone=false, connectFail=false, started=false, showLogin=false, loginMsg='';
+  try{ var ls = JSON.parse(localStorage.getItem('lenslab-draft')||'null'); if(ls&&ls.duty) S=ls; }catch(e){}
+
+  function solo(){return !db;}
+  function syncSid(){
+    if(SID && S.sid!==SID){
+      S=blank(); S.sid=SID; step=0;
+      try{localStorage.removeItem('lenslab-draft');}catch(e){}
+      return true;
+    }
+    return false;
+  }
+  function curMode(){return (mode==='proj'&&booted&&(canEdit||standalone))?'proj':'student';}
+  function open(k){return solo()||!!REL[k];}
+
+  /* ---------- persistence ---------- */
+  var timer=null, writing=false, dirty=false;
+  function schedule(){
+    try{localStorage.setItem('lenslab-draft',JSON.stringify(S));}catch(e){}
+    clearTimeout(timer); timer=setTimeout(flush,600); saveStatus='Saving'; paintStatus();
+  }
+  function flush(){
+    if(!db||!myId||noWrite) {saveStatus=db?(noWrite?'Not shared':'Saved on this device'):'Practice mode: not shared'; paintStatus(); return;}
+    if(writing){dirty=true;return;}
+    writing=true; dirty=false;
+    var body=JSON.parse(JSON.stringify(S)); body.updated=Date.now();
+    db.doc('responses/'+myId).set(body).then(function(){saveStatus='Shared with the class';}).catch(function(e){
+      if(e&&(e.code==='invalid_argument'||e.code==='permission-denied')){noWrite=true;saveStatus='Not shared';render();} else saveStatus='Save failed, will retry';
+    }).then(function(){writing=false;paintStatus(); if(dirty) flush();});
+  }
+  function paintStatus(){var el=$('#status'); if(el) el.textContent=saveStatus;}
+
+  function setPath(o,path,v){var p=path.split('.');for(var i=0;i<p.length-1;i++){if(o[p[i]]==null)o[p[i]]={};o=o[p[i]];}o[p[p.length-1]]=v;}
+  function getPath(o,path){return path.split('.').reduce(function(a,k){return a==null?a:a[k];},o);}
+
+  /* ---------- shared header ---------- */
+  function header(){
+    return '<div class="top"><div class="stack" style="gap:4px"><span class="eyebrow">BUS 308 · Ford Pinto</span><h1>Lens Lab</h1></div>'+
+      (booted&&(canEdit||standalone)?'<div class="seg" role="group" aria-label="View"><button data-act="mode" data-val="student" aria-pressed="'+(curMode()==='student')+'">Student</button><button data-act="mode" data-val="proj" aria-pressed="'+(curMode()==='proj')+'">Projector</button></div>':'')+'</div>';
+  }
+
+  /* ---------- student steps ---------- */
+  function lockBox(msg){return '<div class="lock">'+esc(msg||'Your instructor will open this part.')+'</div>';}
+  function choiceRow(act,key,val,opts){return '<div class="row">'+opts.map(function(o){return '<button class="choice" data-act="'+act+'" data-key="'+key+'" data-val="'+o[0]+'" aria-pressed="'+(val===o[0])+'">'+esc(o[1])+'</button>';}).join('')+'</div>';}
+
+  function s0(){
+    return '<h2>Gut check</h2>'+
+    '<p>Ford can add an $11 part to every Pinto to cut the risk of fuel tank fires in rear-end crashes, or ship the car as designed. You are on the decision team.</p>'+
+    choiceRow('vote','v0',S.v0,[['fix','Fix it'],['ship','Ship it'],])+
+    '<label for="name">First name (optional)<input type="text" id="name" data-bind="name" value="'+esc(S.name)+'" autocomplete="off"></label>'+
+    (db&&!noWrite?'':'<p class="small muted">'+(db?'Your answers stay on your device in this view.':'Practice mode. Answers stay on this device.')+'</p>');
+  }
+  function s1(){
+    if(!open('memo')) return '<h2>The memo</h2>'+lockBox('Wait for the memo reveal.');
+    return '<h2>The memo</h2><p>Ford ran a cost-benefit comparison. Here is the math as it is usually reported.</p>'+
+    '<div class="tablewrap"><table><tr><th>Benefit of fixing</th><th class="num">Amount</th></tr>'+
+    '<tr><td>'+N.deaths+' deaths x $200,000</td><td class="num">$36,000,000</td></tr>'+
+    '<tr><td>'+N.injuries+' burn injuries x $67,000</td><td class="num">$12,060,000</td></tr>'+
+    '<tr><td>'+N.cars.toLocaleString()+' burned cars x $700</td><td class="num">$1,470,000</td></tr>'+
+    '<tr><td><strong>Total benefit</strong></td><td class="num"><strong>$49,530,000</strong></td></tr>'+
+    '<tr><td><strong>Cost: 12.5M vehicles x $11</strong></td><td class="num"><strong>$137,500,000</strong></td></tr></table></div>'+
+    '<div class="warn">The ledger says do not fix. Vote again.</div>'+
+    choiceRow('vote','v1',S.v1,[['fix','Fix it'],['ship','Ship it']]);
+  }
+  function s2(){
+    var h='<h2>Utilitarian analysis</h2><p>Build the ledger. For each group, rate how each option affects them, from -2 (much worse) to +2 (much better). Count everyone equally.</p>';
+    h+='<div class="tablewrap"><table><tr><th>Who</th><th>Fix</th><th>Ship</th></tr>';
+    var tf=0,ts=0;
+    HOLDERS.forEach(function(r){
+      var lf=S.ledger[r[0]+'_fix'], ls=S.ledger[r[0]+'_ship']; tf+=lf||0; ts+=ls||0;
+      h+='<tr><td>'+esc(r[1])+'</td><td>'+scale(r[0],'fix',lf)+'</td><td>'+scale(r[0],'ship',ls)+'</td></tr>';
+    });
+    h+='<tr><td><strong>Net</strong></td><td id="tf"><strong>'+tf+'</strong></td><td id="ts"><strong>'+ts+'</strong></td></tr></table></div>';
+    h+='<label for="third">Add a third option and say how it changes the ledger<textarea id="third" data-bind="third">'+esc(S.third)+'</textarea></label>';
+    h+='<h3>Stress test</h3>';
+    if(!open('memo')) return h+lockBox('Wait for the memo reveal.');
+    h+='<p>The memo valued a life at $200,000. Move the slider to see what a life would have to be worth for fixing to win.</p>'+
+    '<label for="polife">Value of one life: <span id="lifeval">'+money(S.polife)+'</span><input type="range" id="polife" min="100000" max="10000000" step="50000" value="'+S.polife+'" data-bind="polife" data-type="num"></label>'+
+    '<div id="calcOut">'+calcHtml(S.polife)+'</div>'+
+    '<label for="challenge">Which number would you challenge first?<select id="challenge" data-bind="challenge"><option value="">Choose one</option>'+
+    ['The value of a life','The number of deaths and injuries','The cost per car','Who counts as affected'].map(function(o){return '<option'+(S.challenge===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></label>'+
+    '<label for="missing">Who is missing from this ledger?<textarea id="missing" data-bind="missing">'+esc(S.missing)+'</textarea></label>';
+    return h;
+  }
+  function scale(who,opt,val){
+    return '<div class="scale">'+[-2,-1,0,1,2].map(function(v){return '<button data-act="cell" data-key="'+who+'_'+opt+'" data-val="'+v+'" aria-pressed="'+(val===v)+'" aria-label="'+opt+' '+v+'">'+(v>0?'+'+v:v)+'</button>';}).join('')+'</div>';
+  }
+  function calcHtml(life){
+    var b=benefit(life), fixWins=b>=COST;
+    return '<div class="note stack" style="gap:6px"><div class="kv"><span>Benefit of fixing</span><strong>'+money(b)+'</strong></div><div class="kv"><span>Cost of fixing</span><strong>'+money(COST)+'</strong></div>'+
+      '<div class="kv"><span>Verdict</span><strong>'+(fixWins?'Fix wins':'Ship wins')+'</strong></div>'+
+      '<div class="kv"><span>Break-even value of a life</span><strong>'+money(Math.round(breakEven()/1000)*1000)+'</strong></div></div>';
+  }
+  function s3(){
+    var d=S.duty;
+    var h='<h2>Pick a duty and keep it</h2><div class="note"><strong>You are the engineer who ran the fuel tank tests.</strong> You know what the numbers mean and your name is on the report.</div><p>Choose one duty. Write it as a rule for what you will do: "When ___, I will ___." Then see whether you keep it as pressure builds.</p>'+
+    '<label for="dpick">My duty<select id="dpick" data-bind="duty.pick"><option value="">Choose one</option>'+DUTIES.map(function(o){return '<option'+(d.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
+    '<label for="dwhen">When<input type="text" id="dwhen" data-bind="duty.when" value="'+esc(d.when)+'" autocomplete="off"></label>'+
+    '<label for="dwill">I will<input type="text" id="dwill" data-bind="duty.will" value="'+esc(d.will)+'" autocomplete="off"></label>'+
+    '<div class="row"><button class="btn" data-act="commit"'+((d.pick&&d.when&&d.will)?'':' disabled')+'>'+(d.committed?'Committed':'Commit to this duty')+'</button></div>';
+    if(!d.committed) return h;
+    FACTS.forEach(function(f){
+      h+='<div class="stack"><h3>New fact</h3><p>'+esc(f.t)+'</p>';
+      if(!open(f.k)) h+=lockBox('Wait for the next fact.');
+      else{
+        var k=d.k[f.k];
+        h+=choiceRow('keep',f.k,k,[['keep','Keep my duty'],['drop','Drop it']]);
+        if(k==='keep') h+='<label for="why_'+f.k+'">What does keeping it cost you?<textarea id="why_'+f.k+'" data-bind="duty.why.'+f.k+'">'+esc(d.why[f.k]||'')+'</textarea></label>';
+        if(k==='drop') h+='<label for="repl_'+f.k+'">Which duty replaces it?<select id="repl_'+f.k+'" data-bind="duty.repl.'+f.k+'"><option value="">Choose one</option>'+DUTIES.map(function(o){return '<option'+(d.repl[f.k]===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
+          '<label for="why_'+f.k+'">Why does it outrank your first duty?<textarea id="why_'+f.k+'" data-bind="duty.why.'+f.k+'">'+esc(d.why[f.k]||'')+'</textarea></label>';
+      }
+      h+='</div>';
+    });
+    h+='<div class="stack"><h3>The twist</h3>';
+    if(!open('twist')) h+=lockBox('Wait for the reveal.');
+    else h+='<p>Schwartz (1991) argues the memo was a submission to regulators about rollover fuel leakage across all vehicles, using the government\'s own value of a life. Ford may not have been planning around the Pinto at all.</p>'+
+      '<label for="twist">What changes for the ledger? What does not change for your duty?<textarea id="twist" data-bind="twist">'+esc(S.twist)+'</textarea></label>';
+    return h+'</div>';
+  }
+  function s4(){
+    var v=S.virtue;
+    return '<h2>Choosing virtue</h2><p>You are still the engineer. You have now kept or dropped a duty. Virtue asks a different question: what kind of person do your choices make you? Virtue is chosen again and again until it becomes character, and four cardinal virtues give you a checklist.</p>'+
+    '<ul class="quotes">'+VIRTUES.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>'+
+    '<label for="vpick">Which virtue did the engineer need most?<select id="vpick" data-bind="virtue.pick"><option value="">Choose one</option>'+VIRTUES.map(function(o){return '<option'+(v.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
+    '<div class="stack" style="gap:6px"><strong>Where is the right response for the engineer?</strong>'+
+    '<input type="range" id="vmean" min="0" max="100" value="'+v.mean+'" data-bind="virtue.mean" data-type="num" aria-label="Position between staying silent and going public">'+
+    '<div class="histlab"><span>Stay silent (cowardice)</span><span>Go public with everything (recklessness)</span></div>'+
+    '<p class="small muted">The mean is not the midpoint. It is the fitting response for this person, this time, and this reason.</p></div>'+
+    '<label for="vfirst">Find the first small choice in the story where someone could have chosen differently. What habit did it start?<textarea id="vfirst" data-bind="virtue.first">'+esc(v.first)+'</textarea></label>'+
+    '<label for="vpers">Name one small choice you repeat at work or school that builds your character.<textarea id="vpers" data-bind="virtue.personal">'+esc(v.personal)+'</textarea></label>';
+  }
+  function s5(){
+    var e=S.exit;
+    return '<h2>Exit ticket</h2><p>One line per lens.</p>'+
+    '<label for="eu">Utilitarian: the fact or number that would flip your analysis<textarea id="eu" data-bind="exit.u">'+esc(e.u)+'</textarea></label>'+
+    '<label for="ed">Duty: the duty you would keep and what it costs you<textarea id="ed" data-bind="exit.d">'+esc(e.d)+'</textarea></label>'+
+    '<label for="ev">Virtue: the cardinal virtue at stake and the choice that builds it<textarea id="ev" data-bind="exit.v">'+esc(e.v)+'</textarea></label>'+
+    '<div class="note">Ford did the math. The question was never whether they could count. It was whether counting was the right thing to do.</div>';
+  }
+  var STEPFN=[s0,s1,s2,s3,s4,s5];
+
+  function studentView(){
+    var h='<div class="steps" role="tablist">'+STEPS.map(function(n,i){return '<button data-act="go" data-val="'+i+'"'+(i===step?' aria-current="step"':'')+'>'+(i+1)+'. '+esc(n)+'</button>';}).join('')+'</div>';
+    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+(step===STEPS.length-1?' disabled':'')+'>Next</button></div></div>';
+    return h;
+  }
+
+  /* ---------- projector ---------- */
+  function pct(n,t){return t?Math.round(100*n/t):0;}
+  function voteBar(label,key){
+    var f=0,s=0; RESP.forEach(function(r){if(r[key]==='fix')f++; else if(r[key]==='ship')s++;});
+    var t=f+s;
+    return '<div class="stack" style="gap:6px"><div class="kv"><strong>'+esc(label)+'</strong><span class="muted small">'+t+' votes</span></div>'+
+      '<div class="bar"><span class="a" style="flex:'+(f||0.0001)+'">'+(f?'Fix '+f+' ('+pct(f,t)+'%)':'')+'</span><span class="b" style="flex:'+(s||0.0001)+'">'+(s?'Ship '+s+' ('+pct(s,t)+'%)':'')+'</span></div></div>';
+  }
+  function projView(){
+    var n=RESP.length, h='';
+    h+='<div class="note kv"><span>'+(solo()?'Practice mode: responses are not shared, so only controls and the calculator are live.':'Responses in the room')+'</span><strong class="big">'+n+'</strong></div>';
+    h+='<div class="grid3" style="margin-top:16px">';
+    h+='<div class="card"><h3>Gut check, then memo</h3>'+voteBar('Before the memo','v0')+voteBar('After the memo','v1')+'</div>';
+    h+='<div class="card"><h3>What a life must be worth</h3><div class="big">'+money(Math.round(breakEven()/1000)*1000)+'</div><p class="muted">Break-even value of one life for fixing to win. The memo used $200,000.</p>'+
+      '<label for="plife">Try a value: <span id="plval">'+money(S.polife)+'</span><input type="range" id="plife" min="100000" max="10000000" step="50000" value="'+S.polife+'"></label><div id="pcalc">'+calcHtml(S.polife)+'</div></div>';
+    h+='<div class="card"><h3>Who kept their duty</h3>'+FACTS.map(function(f){
+      var k=0,d=0; RESP.forEach(function(r){var v=r.duty&&r.duty.k&&r.duty.k[f.k]; if(v==='keep')k++; else if(v==='drop')d++;});
+      var t=k+d;
+      return '<div class="stack" style="gap:6px"><div class="kv"><span>'+esc(f.t)+'</span><span class="muted small">'+t+'</span></div><div class="bar"><span class="a" style="flex:'+(k||0.0001)+'">'+(k?'Keep '+pct(k,t)+'%':'')+'</span><span class="b" style="flex:'+(d||0.0001)+'">'+(d?'Drop '+pct(d,t)+'%':'')+'</span></div></div>';
+    }).join('')+'</div>';
+    var bins=new Array(10).fill(0), placed=0;
+    RESP.forEach(function(r){var v=r.virtue; if(v&&typeof v.mean==='number'&&v.placed){bins[Math.min(9,Math.floor(v.mean/10))]++;placed++;}});
+    var mx=Math.max.apply(null,bins.concat([1]));
+    h+='<div class="card"><h3>Where students put the engineer</h3><div class="hist">'+bins.map(function(c){return '<div style="height:'+Math.max(2,Math.round(100*c/mx))+'%" title="'+c+'"></div>';}).join('')+'</div><div class="histlab"><span>Stay silent</span><span>Go public</span></div><p class="muted small">'+placed+' placed</p></div>';
+    var ex=RESP.filter(function(r){return r.exit&&(r.exit.u||r.exit.d||r.exit.v);});
+    function quotes(k){return ex.filter(function(r){return r.exit[k];}).slice(0,5).map(function(r){return '<li>'+esc(r.exit[k])+'</li>';}).join('')||'<li class="muted">None yet</li>';}
+    h+='<div class="card"><h3>Exit tickets: '+ex.length+'</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
+    h+='</div>';
+    if(mode==='proj'){
+      var items=[['memo','Memo reveal and revote'],['f1','Duty fact 1: $1,000 per car'],['f2','Duty fact 2: stay quiet or lose the job'],['f3','Duty fact 3: every automaker does it'],['twist','The Schwartz twist']];
+      h+='<div class="card" style="margin-top:16px"><h3>Release to phones</h3>'+(relErr?'<div class="warn">'+esc(relErr)+'</div>':'')+items.map(function(it){return '<div class="release"><span>'+esc(it[1])+'</span><button class="btn '+(REL[it[0]]?'':'ghost')+'" data-act="release" data-val="'+it[0]+'">'+(REL[it[0]]?'Released':'Release')+'</button></div>';}).join('')+
+      '<p class="small muted" style="margin-top:8px">Start new session clears releases, all responses, and saved answers on student phones.</p><div class="row"><button class="btn" data-act="newsession"'+(db?'':' disabled')+'>'+(newArm?'Click again to clear everything':'Start new session')+'</button><button class="btn ghost" data-act="csv"'+(n?'':' disabled')+'>Export CSV</button>'+
+      '<button class="btn ghost" data-act="clear"'+((!db||!n)?' disabled':'')+'>'+(clearArm?'Click again to delete all responses':'Clear responses')+'</button></div></div>';
+    }
+    return h;
+  }
+
+  function loginHtml(){
+    if(!db||standalone) return '';
+    if(canEdit) return '<footer><button class="link" data-act="signout">Instructor sign out</button></footer>';
+    if(showLogin) return '<footer class="stack"><label for="lemail">Instructor email<input type="text" id="lemail" autocomplete="username"></label>'+
+      '<label for="lpass">Password<input type="password" id="lpass" autocomplete="current-password"></label>'+
+      '<div class="row"><button class="btn" data-act="signin">Sign in</button></div>'+(loginMsg?'<span class="small">'+esc(loginMsg)+'</span>':'')+'</footer>';
+    return '<footer><button class="link" data-act="login">Instructor sign in</button></footer>';
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    var wide=(curMode()==='proj');
+    var root=$('#root'); root.className='wrap'+(wide?' wide':'');
+    var notice=(db&&noWrite&&curMode()==='student')?'<div class="warn" style="margin-bottom:12px">You can view this session, but your answers will not be shared with the class.</div>':'';
+    root.innerHTML=header()+notice+(connectFail?'<div class="warn" style="margin-bottom:12px">Could not connect to the class session. Your answers stay on this device.</div>':'')+(wide?projView():studentView())+
+      '<footer>Sources: Dowie, "Pinto Madness," Mother Jones (1977). Schwartz, "The Myth of the Ford Pinto Case," Rutgers Law Review 43 (1991).</footer>'+loginHtml();
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click',function(ev){
+    var b=ev.target.closest('[data-act]'); if(!b||b.disabled) return;
+    var a=b.getAttribute('data-act'), v=b.getAttribute('data-val'), k=b.getAttribute('data-key');
+    if(a==='mode'){mode=v; try{history.replaceState(null,'',v==='proj'?'#projector':'#');}catch(e){} if(mode==='proj') subscribeResp(); render();}
+    else if(a==='go'){step=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); render(); window.scrollTo(0,0);}
+    else if(a==='vote'){S[k]=v; schedule(); render();}
+    else if(a==='cell'){S.ledger[k]=parseInt(v,10); schedule(); render();}
+    else if(a==='commit'){S.duty.committed=true; schedule(); render();}
+    else if(a==='keep'){S.duty.k[k]=v; schedule(); render();}
+    else if(a==='release'){var prev=!!REL[v]; REL[v]=!prev; relErr=''; render(); pushState(v,prev);}
+    else if(a==='newsession'){ if(!newArm){newArm=true; render(); setTimeout(function(){newArm=false; if(curMode()==='proj') render();},4000);} else {newArm=false; newSession();} }
+    else if(a==='login'){showLogin=true; loginMsg=''; render();}
+    else if(a==='signin'){
+      var em=($('#lemail')||{}).value||'', pw=($('#lpass')||{}).value||'';
+      firebase.auth().signInWithEmailAndPassword(em.trim(),pw).then(function(){showLogin=false; loginMsg=''; render();}).catch(function(){loginMsg='Sign in failed. Check the email and password.'; showLogin=true; render();});
+    }
+    else if(a==='signout'){mode='student'; canEdit=false; firebase.auth().signOut(); render();}
+    else if(a==='csv'){exportCsv();}
+    else if(a==='clear'){ if(!clearArm){clearArm=true; render(); setTimeout(function(){clearArm=false; if(mode==='proj') render();},4000);} else {clearArm=false; clearAll();} }
+  });
+  function onBind(ev){
+    var el=ev.target; var p=el.getAttribute&&el.getAttribute('data-bind'); if(!p) return;
+    if(ev.type==='input' && el.tagName==='SELECT') return;
+    var val=el.value; if(el.getAttribute('data-type')==='num') val=parseFloat(val);
+    setPath(S,p,val);
+    if(p==='polife'){ $('#lifeval').textContent=money(val); $('#calcOut').innerHTML=calcHtml(val); }
+    if(p==='virtue.mean') S.virtue.placed=true;
+    if(el.tagName==='SELECT') { schedule(); render(); return; }
+    schedule();
+  }
+  document.addEventListener('input',onBind);
+  document.addEventListener('change',function(ev){ if(ev.target.tagName==='SELECT') onBind(ev); });
+  document.addEventListener('input',function(ev){
+    if(ev.target.id==='plife'){ var v=parseFloat(ev.target.value); S.polife=v; $('#plval').textContent=money(v); $('#pcalc').innerHTML=calcHtml(v); }
+  });
+
+  /* ---------- instructor actions ---------- */
+  function pushState(key,prev){
+    if(!db) return;
+    db.doc('session/state').set({released:REL,updated:Date.now()}).catch(function(){
+      REL[key]=prev;
+      relErr='That release did not save. Only the page owner or an editor can release. If that is you, reload the page and try again.';
+      render();
+    });
+  }
+  function newSession(){
+    if(!db) return;
+    var sid=String(Date.now()), ids=RESP.map(function(r){return r._id;});
+    REL={}; SID=sid; S=blank(); S.sid=sid; step=0; relErr='';
+    try{localStorage.removeItem('lenslab-draft');}catch(e){}
+    render();
+    db.doc('session/state').set({released:{},sid:sid,updated:Date.now()}).then(function(){
+      return ids.reduce(function(p,id){return p.then(function(){return db.doc('responses/'+id).delete();});},Promise.resolve());
+    }).catch(function(){
+      relErr='The new session did not fully clear. Only the page owner can delete responses. Reload and try again.'; render();
+    });
+  }
+  function csvCell(x){x=x==null?'':String(x); return '"'+x.replace(/"/g,'""')+'"';}
+  function exportCsv(){
+    if(!RESP.length) return;
+    var cols=['name','first vote','vote after memo','third option','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue'];
+    var rows=[cols.map(csvCell).join(',')];
+    RESP.forEach(function(r){var d=r.duty||{},k=d.k||{},v=r.virtue||{},e=r.exit||{};
+      rows.push([r.name,r.v0,r.v1,r.third,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v].map(csvCell).join(','));});
+    var blob=new Blob([rows.join('\n')],{type:'text/csv'});
+    var link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='lens-lab-responses.csv';
+    document.body.appendChild(link); link.click(); link.remove();
+  }
+  function clearAll(){
+    if(!db) return;
+    var ids=RESP.map(function(r){return r._id;});
+    ids.reduce(function(p,id){return p.then(function(){return db.doc('responses/'+id).delete();});},Promise.resolve()).catch(function(){});
+  }
+
+  /* ---------- live data ---------- */
+  function subscribeResp(){
+    if(subbed||!db) return; subbed=true;
+    db.collection('responses').onSnapshot(function(snap){
+      RESP=snap.docs.map(function(d){var x=Object.assign({},d.data()||{}); x._id=d.id; return x;});
+      if(curMode()==='proj' && !document.activeElement.matches('input[type=range]')) render();
+    },function(){});
+  }
+
+  /* ---------- boot ---------- */
+  render();
+
+  function startLive(){
+    if(started) return; started=true;
+    db.doc('session/state').onSnapshot(function(s){
+      var d=s.exists?(s.data()||{}):{}; var next=d.released||{};
+      var changed=JSON.stringify(next)!==JSON.stringify(REL)||!hasState;
+      REL=JSON.parse(JSON.stringify(next)); hasState=true;
+      SID=d.sid||''; var wiped=syncSid();
+      if(wiped||(changed && !(document.activeElement&&document.activeElement.matches('input,textarea,select')))) render();
+    },function(){});
+    function done(){ booted=true; saveStatus='Shared with the class'; render(); }
+    if(myId){
+      db.doc('responses/'+myId).get().then(function(mine){
+        if(mine.exists){ var m=JSON.parse(JSON.stringify(mine.data())); delete m.updated; S=Object.assign(blank(),m); syncSid(); }
+      }).catch(function(){}).then(done);
+    } else done();
+  }
+
+  function boot(){
+    var cfg=FIREBASE_CONFIG;
+    if(!cfg.apiKey||String(cfg.apiKey).indexOf('PASTE')===0){ standalone=true; booted=true; render(); return; }
+    try{
+      firebase.initializeApp(cfg);
+      db=firebase.firestore();
+      var auth=firebase.auth();
+      auth.onAuthStateChanged(function(u){
+        if(!u){
+          auth.signInAnonymously().catch(function(){ connectFail=true; db=null; booted=true; render(); });
+          return;
+        }
+        myId=u.uid; canEdit=!u.isAnonymous;
+        startLive();
+        if(canEdit && mode==='proj') subscribeResp();
+        if(booted) render();
+      });
+    }catch(e){ connectFail=true; db=null; booted=true; render(); }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
