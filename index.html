@@ -138,7 +138,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   /* ---------- state ---------- */
   function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',thirdName:'',rerun:'',ledger:{},polife:200000,challenge:'',missing:'',
     duty:{pick:'',when:'',will:'',committed:false,k:{},why:{},repl:{}},twist:'',
-    virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:''}};}
+    virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:'',v1:'',v2:'',done:false}};}
   var S = blank(), REL = {}, RESP = [], SID = '', newArm = false, gateMsg = false;
   var db=null, userCap=null, dl=null, myId=null, canEdit=false, hasState=false, noWrite=false;
   var mode = (location.hash==='#projector')?'proj':'student';
@@ -166,6 +166,9 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     if(!stepOpen(step+1)) return 'Wait for your instructor to open the next step.';
     return '';
   }
+  var VNAMES=['Prudence','Justice','Courage','Temperance'];
+  function exitOk(){var e=S.exit||{}; return !!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim()&&e.v1&&e.v2&&e.v1!==e.v2);}
+  function exitHint(){var e=S.exit||{}; if(!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim())) return 'Fill in all three lines to submit.'; if(!e.v1||!e.v2) return 'Choose two virtues to submit.'; if(e.v1===e.v2) return 'Choose two different virtues to submit.'; return '';}
   function usd(n){return '$'+Math.round(n).toLocaleString('en-US');}
 
   /* ---------- persistence ---------- */
@@ -299,11 +302,16 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   }
   function s5(){
     var e=S.exit;
-    return '<h2>Exit ticket</h2><p>One line per lens.</p>'+
+    function vsel(id,key,label){return '<label for="'+id+'">'+label+'<select id="'+id+'" data-bind="exit.'+key+'"><option value="">Choose one</option>'+VNAMES.map(function(o){return '<option'+(e[key]===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>';}
+    return '<h2>Exit ticket</h2><p>One line per lens. For virtue, use at least two different cardinal virtues.</p>'+
     '<label for="eu">Utilitarian: the fact or number that would flip your analysis<textarea id="eu" data-bind="exit.u">'+esc(e.u)+'</textarea></label>'+
     '<label for="ed">Duty: the duty you would keep and what it costs you<textarea id="ed" data-bind="exit.d">'+esc(e.d)+'</textarea></label>'+
-    '<label for="ev">Virtue: the cardinal virtue at stake and the choice that builds it<textarea id="ev" data-bind="exit.v">'+esc(e.v)+'</textarea></label>'+
-    '<div class="note">Ford did the math. The question was never whether they could count. It was whether counting was the right thing to do.</div>';
+    '<div class="stack" style="gap:6px"><strong>Virtue: name two different cardinal virtues at stake</strong>'+
+    vsel('ev1','v1','First virtue')+vsel('ev2','v2','Second virtue (different from the first)')+
+    '<label for="ev">For each virtue, say what the engineer or Ford would have done to practice it, and the small choice that builds it<textarea id="ev" data-bind="exit.v">'+esc(e.v)+'</textarea></label></div>'+
+    '<div class="note">Ford did the math. The question was never whether they could count. It was whether counting was the right thing to do.</div>'+
+    '<div class="row"><button class="btn" data-act="submit"'+(exitOk()?'':' disabled')+'>'+(e.done?'Submitted':'Submit exit ticket')+'</button></div>'+
+    '<p class="small muted" id="exithint">'+(e.done?'Submitted. Thank you. If you edit your answers, they still save.':esc(exitHint()))+'</p>';
   }
   var STEPFN=[s0,s1,s2,s3,s4,s5];
 
@@ -311,7 +319,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     var mx=maxStep(); if(step>mx) step=mx;
     var msg=nextMsg();
     var h='<div class="steps" role="tablist">'+STEPS.map(function(n,i){return '<button data-act="go" data-val="'+i+'"'+(i===step?' aria-current="step"':'')+(i>mx?' disabled':'')+'>'+(i+1)+'. '+esc(n)+'</button>';}).join('')+'</div>';
-    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+((step===STEPS.length-1||msg)?' disabled':'')+'>Next</button></div>'+(msg?'<p class="small muted" id="navhint" style="margin:0">'+esc(msg)+'</p>':'')+'</div>';
+    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span>'+(step===STEPS.length-1?'':'<button class="btn" data-act="go" data-val="'+(step+1)+'"'+(msg?' disabled':'')+'>Next</button>')+'</div>'+(msg?'<p class="small muted" id="navhint" style="margin:0">'+esc(msg)+'</p>':'')+'</div>';
     return h;
   }
 
@@ -339,9 +347,9 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     RESP.forEach(function(r){var v=r.virtue; if(v&&typeof v.mean==='number'&&v.placed){bins[Math.min(9,Math.floor(v.mean/10))]++;placed++;}});
     var mx=Math.max.apply(null,bins.concat([1]));
     h+='<div class="card"><h3>Where students put the engineer</h3><div class="hist">'+bins.map(function(c){return '<div style="height:'+Math.max(2,Math.round(100*c/mx))+'%" title="'+c+'"></div>';}).join('')+'</div><div class="histlab"><span>Stay silent</span><span>Go public</span></div><p class="muted small">'+placed+' placed</p></div>';
-    var ex=RESP.filter(function(r){return r.exit&&(r.exit.u||r.exit.d||r.exit.v);});
-    function quotes(k){return ex.filter(function(r){return r.exit[k];}).slice(0,5).map(function(r){return '<li>'+esc(r.exit[k])+'</li>';}).join('')||'<li class="muted">None yet</li>';}
-    h+='<div class="card"><h3>Exit tickets: '+ex.length+'</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
+    var ex=RESP.filter(function(r){return r.exit&&(r.exit.u||r.exit.d||r.exit.v);}); var nsub=RESP.filter(function(r){return r.exit&&r.exit.done;}).length;
+    function quotes(k){return ex.filter(function(r){return r.exit[k];}).slice(0,5).map(function(r){return '<li>'+(k==='v'&&(r.exit.v1||r.exit.v2)?'<strong>'+esc([r.exit.v1,r.exit.v2].filter(Boolean).join(' + '))+':</strong> ':'')+esc(r.exit[k])+'</li>';}).join('')||'<li class="muted">None yet</li>';}
+    h+='<div class="card"><h3>Exit tickets: '+nsub+' submitted, '+ex.length+' started</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
     h+='</div>';
     if(mode==='proj'){
       var items=[['memo','Memo reveal and revote (opens step 2)'],['util','Open step 3: Utilitarian'],['duty','Open step 4: Duty'],['f1','Duty fact 1: $1,000 per car'],['f2','Duty fact 2: stay quiet or lose the job'],['f3','Duty fact 3: every automaker does it'],['twist','The Schwartz twist'],['virtue','Open step 5: Virtue'],['exit','Open step 6: Exit ticket']];
@@ -378,6 +386,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     else if(a==='go'){var t=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); var mxs=maxStep(); if(t>mxs){step=mxs; gateMsg=true;} else {step=t; gateMsg=false;} render(); window.scrollTo(0,0);}
     else if(a==='vote'){S[k]=v; schedule(); render();}
     else if(a==='cell'){S.ledger[k]=parseInt(v,10); schedule(); render();}
+    else if(a==='submit'){ if(exitOk()){S.exit.done=true; schedule(); render();} }
     else if(a==='commit'){S.duty.committed=true; schedule(); render();}
     else if(a==='keep'){S.duty.k[k]=v; schedule(); render();}
     else if(a==='release'){var prev=!!REL[v]; REL[v]=!prev; relErr=''; render(); pushState(v,prev);}
@@ -402,6 +411,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     if(p.indexOf('duty.')===0 && !S.duty.committed){
       var cb=document.querySelector('[data-act="commit"]');
       if(cb) cb.disabled=!(String(S.duty.pick||'').trim()&&String(S.duty.when||'').trim()&&String(S.duty.will||'').trim());
+    }
+    if(p.indexOf('exit.')===0 && el.tagName!=='SELECT'){
+      var sb=document.querySelector('[data-act="submit"]'); if(sb) sb.disabled=!exitOk();
+      var eh=document.getElementById('exithint'); if(eh&&!S.exit.done) eh.textContent=exitHint();
     }
     if(el.tagName==='SELECT') { schedule(); render(); return; }
     schedule();
@@ -436,10 +449,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function csvCell(x){x=x==null?'':String(x); return '"'+x.replace(/"/g,'""')+'"';}
   function exportCsv(){
     if(!RESP.length) return;
-    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue'];
+    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue 1','exit virtue 2','exit virtue reflection','exit submitted'];
     var rows=[cols.map(csvCell).join(',')];
     RESP.forEach(function(r){var d=r.duty||{},k=d.k||{},v=r.virtue||{},e=r.exit||{};
-      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v].map(csvCell).join(','));});
+      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v1,e.v2,e.v,e.done?'yes':'no'].map(csvCell).join(','));});
     var blob=new Blob([rows.join('\n')],{type:'text/csv'});
     var link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='lens-lab-responses.csv';
     document.body.appendChild(link); link.click(); link.remove();
