@@ -79,6 +79,12 @@ td.num,th.num{text-align:right}
 .hist{display:flex;align-items:flex-end;gap:4px;height:120px;border-bottom:1px solid var(--line)}
 .hist div{flex:1;background:var(--accent);min-height:2px;border-radius:3px 3px 0 0}
 .histlab{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.ledger{display:flex;flex-direction:column}
+.lg{display:flex;flex-direction:column;gap:6px;padding-block:12px;border-bottom:1px solid var(--line)}
+.lrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.llab{min-width:0;overflow-wrap:anywhere}
+.steps button:disabled{opacity:.45;cursor:not-allowed}
+.note.kv{flex-wrap:wrap}
 .release{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
 ul.quotes{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
 button.link{background:none;border:0;color:var(--accent);text-decoration:underline;font:inherit;padding:0;cursor:pointer;min-height:32px}
@@ -130,7 +136,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   var STEPS = ['Gut check','The memo','Utilitarian','Duty','Virtue','Exit ticket'];
 
   /* ---------- state ---------- */
-  function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',ledger:{},polife:200000,challenge:'',missing:'',
+  function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',thirdName:'',rerun:'',ledger:{},polife:200000,challenge:'',missing:'',
     duty:{pick:'',when:'',will:'',committed:false,k:{},why:{},repl:{}},twist:'',
     virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:''}};}
   var S = blank(), REL = {}, RESP = [], SID = '', newArm = false, gateMsg = false;
@@ -150,6 +156,17 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   }
   function curMode(){return (mode==='proj'&&booted&&(canEdit||standalone))?'proj':'student';}
   function open(k){return solo()||!!REL[k];}
+  var STEPKEY=[null,'memo','util','duty','virtue','exit'];
+  function stepOpen(i){ return i<=0 ? true : open(STEPKEY[i]); }
+  function reqBlock(i){ if(i===0) return !S.v0; if(i===1) return !S.v1; if(i===3) return !S.duty.committed; return false; }
+  function maxStep(){ var m=0; while(m<STEPS.length-1 && stepOpen(m+1) && !reqBlock(m)) m++; return m; }
+  function nextMsg(){
+    if(step>=STEPS.length-1) return '';
+    if(reqBlock(step)) return step===0?'Pick Fix it or Ship it to continue.':(step===1?'Vote again to continue.':'Commit to a duty to continue.');
+    if(!stepOpen(step+1)) return 'Wait for your instructor to open the next step.';
+    return '';
+  }
+  function usd(n){return '$'+Math.round(n).toLocaleString('en-US');}
 
   /* ---------- persistence ---------- */
   var timer=null, writing=false, dirty=false;
@@ -200,21 +217,33 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     '<div class="warn">The ledger says do not fix. Vote again.</div>'+
     choiceRow('vote','v1',S.v1,[['fix','Fix it'],['ship','Ship it']]);
   }
+  function lrow(who,opt,label,val,cls){
+    return '<div class="lrow"><span class="llab'+(cls?' '+cls:'')+'">'+esc(label)+'</span>'+scale(who,opt,val)+'</div>';
+  }
   function s2(){
-    var h='<h2>Utilitarian analysis</h2><p>Build the ledger. For each group, rate how each option affects them, from -2 (much worse) to +2 (much better). Count everyone equally.</p>';
-    h+='<div class="tablewrap"><table><tr><th>Who</th><th>Fix</th><th>Ship</th></tr>';
-    var tf=0,ts=0;
+    var tName=(S.thirdName||'').trim()||'Your option';
+    var h='<h2>Utilitarian analysis</h2><p>Build the ledger in two rounds. In round 1, rate Fix and Ship. For each group, rate how the option affects them, from -2 (much worse) to +2 (much better). Count everyone equally. In round 2, invent a third option and rate it too.</p>';
+    var tf=0,ts=0,tt=0;
+    h+='<div class="ledger">';
     HOLDERS.forEach(function(r){
-      var lf=S.ledger[r[0]+'_fix'], ls=S.ledger[r[0]+'_ship']; tf+=lf||0; ts+=ls||0;
-      h+='<tr><td>'+esc(r[1])+'</td><td>'+scale(r[0],'fix',lf)+'</td><td>'+scale(r[0],'ship',ls)+'</td></tr>';
+      var lf=S.ledger[r[0]+'_fix'], ls=S.ledger[r[0]+'_ship'], l3=S.ledger[r[0]+'_third']; tf+=lf||0; ts+=ls||0; tt+=l3||0;
+      h+='<div class="lg"><strong>'+esc(r[1])+'</strong>'+lrow(r[0],'fix','Fix',lf)+lrow(r[0],'ship','Ship',ls)+lrow(r[0],'third',tName,l3,'thirdLab')+'</div>';
     });
-    h+='<tr><td><strong>Net</strong></td><td id="tf"><strong>'+tf+'</strong></td><td id="ts"><strong>'+ts+'</strong></td></tr></table></div>';
-    h+='<label for="third">Add a third option and say how it changes the ledger<textarea id="third" data-bind="third">'+esc(S.third)+'</textarea></label>';
+    h+='</div>';
+    h+='<div class="note kv" id="netrow"><span>Net: Fix <strong id="tf">'+tf+'</strong></span><span>Ship <strong id="ts">'+ts+'</strong></span><span><span class="thirdLab">'+esc(tName)+'</span> <strong id="tt">'+tt+'</strong></span></div>';
+    h+='<div class="stack"><h3>Round 2: add your own option</h3>'+
+      '<p>Fix and Ship are not the only choices. Invent a third option, name it, and rate it in the third row under each group above. Then compare the three net scores.</p>'+
+      '<div class="note stack" style="gap:6px"><strong>Examples to spark an idea</strong><ul class="quotes"><li>Ship as designed, but tell buyers and regulators about the risk.</li><li>Add a cheaper partial fix, such as a shield that protects part of the tank.</li><li>Fix the highest-risk models first and phase in the rest.</li><li>Recall and repair cars that are already sold.</li><li>Delay the launch until a safer design is ready.</li></ul><span class="small muted">A good option is specific, something Ford could really do, and different from Fix and Ship in who it helps or hurts.</span></div>'+
+      '<label for="thirdName">Name your option<input type="text" id="thirdName" data-bind="thirdName" value="'+esc(S.thirdName)+'" placeholder="A short name, such as Ship and disclose" autocomplete="off"></label>'+
+      '<label for="third">Describe it. What would Ford do, and who is helped or hurt differently than under Fix or Ship?<textarea id="third" data-bind="third">'+esc(S.third)+'</textarea></label>'+
+      '<label for="rerun">Rerun the ledger. Did the best option change after you added yours? What did that teach you?<textarea id="rerun" data-bind="rerun">'+esc(S.rerun)+'</textarea></label></div>';
     h+='<h3>Stress test</h3>';
     if(!open('memo')) return h+lockBox('Wait for the memo reveal.');
-    h+='<p>The memo valued a life at $200,000. Move the slider to see what a life would have to be worth for fixing to win.</p>'+
-    '<label for="polife">Value of one life: <span id="lifeval">'+money(S.polife)+'</span><input type="range" id="polife" min="100000" max="10000000" step="50000" value="'+S.polife+'" data-bind="polife" data-type="num"></label>'+
-    '<div id="calcOut">'+calcHtml(S.polife)+'</div>'+
+    var pl=Math.min(1300000,Math.max(100000,S.polife||200000));
+    h+='<p>The memo valued a life at $200,000. Move the slider and watch the verdict. Find the value where fixing starts to win.</p>'+
+    '<label for="polife">Value of one life: <span id="lifeval">'+usd(pl)+'</span><input type="range" id="polife" min="100000" max="1300000" step="10000" value="'+pl+'" data-bind="polife" data-type="num"></label>'+
+    '<div class="histlab"><span>$100,000</span><span>$1,300,000</span></div>'+
+    '<div id="calcOut">'+calcHtml(pl,false)+'</div>'+
     '<label for="challenge">Which number would you challenge first?<select id="challenge" data-bind="challenge"><option value="">Choose one</option>'+
     ['The value of a life','The number of deaths and injuries','The cost per car','Who counts as affected'].map(function(o){return '<option'+(S.challenge===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></label>'+
     '<label for="missing">Who is missing from this ledger?<textarea id="missing" data-bind="missing">'+esc(S.missing)+'</textarea></label>';
@@ -223,18 +252,19 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function scale(who,opt,val){
     return '<div class="scale">'+[-2,-1,0,1,2].map(function(v){return '<button data-act="cell" data-key="'+who+'_'+opt+'" data-val="'+v+'" aria-pressed="'+(val===v)+'" aria-label="'+opt+' '+v+'">'+(v>0?'+'+v:v)+'</button>';}).join('')+'</div>';
   }
-  function calcHtml(life){
+  function calcHtml(life,showBreak){
     var b=benefit(life), fixWins=b>=COST;
     return '<div class="note stack" style="gap:6px"><div class="kv"><span>Benefit of fixing</span><strong>'+money(b)+'</strong></div><div class="kv"><span>Cost of fixing</span><strong>'+money(COST)+'</strong></div>'+
       '<div class="kv"><span>Verdict</span><strong>'+(fixWins?'Fix wins':'Ship wins')+'</strong></div>'+
-      '<div class="kv"><span>Break-even value of a life</span><strong>'+money(Math.round(breakEven()/1000)*1000)+'</strong></div></div>';
+      (showBreak?'<div class="kv"><span>Break-even value of a life</span><strong>'+money(Math.round(breakEven()/1000)*1000)+'</strong></div>':'')+'</div>';
   }
   function s3(){
     var d=S.duty;
-    var h='<h2>Pick a duty and keep it</h2><div class="note"><strong>You are the engineer who ran the fuel tank tests.</strong> You know what the numbers mean and your name is on the report.</div><p>Choose one duty. Write it as a rule for what you will do: "When ___, I will ___." Then see whether you keep it as pressure builds.</p>'+
+    var h='<h2>Pick a duty and keep it</h2><div class="note"><strong>You are the engineer who ran the fuel tank tests.</strong> You know what the numbers mean and your name is on the report.</div><p>Choose one duty. Then write it as a rule for what you will do. Later you will see whether you keep it as pressure builds.</p>'+
     '<label for="dpick">My duty<select id="dpick" data-bind="duty.pick"><option value="">Choose one</option>'+DUTIES.map(function(o){return '<option'+(d.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
-    '<label for="dwhen">When<input type="text" id="dwhen" data-bind="duty.when" value="'+esc(d.when)+'" autocomplete="off"></label>'+
-    '<label for="dwill">I will<input type="text" id="dwill" data-bind="duty.will" value="'+esc(d.will)+'" autocomplete="off"></label>'+
+    '<div class="note stack" style="gap:6px"><strong>How to write your rule</strong><span>"When" names the situation that triggers the rule. "I will" names what you do every time that situation comes up, even when it costs you. Write it so it would still apply if the facts changed.</span><ul class="quotes"><li>When I know a product could seriously hurt customers, I will tell them and the regulators, even if my boss objects. (honesty)</li><li>When a test shows a serious safety risk, I will stop work on that part until it is fixed. (protect people from harm)</li><li>When I disagree with a company decision, I will raise it inside the company and not go public. (loyalty)</li></ul></div>'+
+    '<label for="dwhen">When (the situation that triggers your rule)<input type="text" id="dwhen" data-bind="duty.when" value="'+esc(d.when)+'" placeholder="Describe the situation" autocomplete="off"></label>'+
+    '<label for="dwill">I will (what you do every time, even if it costs you)<input type="text" id="dwill" data-bind="duty.will" value="'+esc(d.will)+'" placeholder="Describe the action" autocomplete="off"></label>'+
     '<div class="row"><button class="btn" data-act="commit"'+((d.pick&&String(d.when||'').trim()&&String(d.will||'').trim())?'':' disabled')+'>'+(d.committed?'Committed':'Commit to this duty')+'</button></div>';
     if(!d.committed) return h+'<p class="small muted" id="gatehint">'+(gateMsg?'Commit to a duty before moving on. Fill in all three boxes, then press the button.':'Fill in all three boxes, then press the button to see the pressure facts.')+'</p>';
     FACTS.forEach(function(f){
@@ -278,8 +308,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   var STEPFN=[s0,s1,s2,s3,s4,s5];
 
   function studentView(){
-    var h='<div class="steps" role="tablist">'+STEPS.map(function(n,i){return '<button data-act="go" data-val="'+i+'"'+(i===step?' aria-current="step"':'')+'>'+(i+1)+'. '+esc(n)+'</button>';}).join('')+'</div>';
-    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+((step===STEPS.length-1||(step===3&&!S.duty.committed))?' disabled':'')+'>Next</button></div></div>';
+    var mx=maxStep(); if(step>mx) step=mx;
+    var msg=nextMsg();
+    var h='<div class="steps" role="tablist">'+STEPS.map(function(n,i){return '<button data-act="go" data-val="'+i+'"'+(i===step?' aria-current="step"':'')+(i>mx?' disabled':'')+'>'+(i+1)+'. '+esc(n)+'</button>';}).join('')+'</div>';
+    h+='<div class="panel">'+STEPFN[step]()+'<div class="nav"><button class="btn ghost" data-act="go" data-val="'+(step-1)+'"'+(step===0?' disabled':'')+'>Back</button><span id="status" class="status" style="align-self:center">'+esc(saveStatus)+'</span><button class="btn" data-act="go" data-val="'+(step+1)+'"'+((step===STEPS.length-1||msg)?' disabled':'')+'>Next</button></div>'+(msg?'<p class="small muted" id="navhint" style="margin:0">'+esc(msg)+'</p>':'')+'</div>';
     return h;
   }
 
@@ -297,7 +329,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     h+='<div class="grid3" style="margin-top:16px">';
     h+='<div class="card"><h3>Gut check, then memo</h3>'+voteBar('Before the memo','v0')+voteBar('After the memo','v1')+'</div>';
     h+='<div class="card"><h3>What a life must be worth</h3><div class="big">'+money(Math.round(breakEven()/1000)*1000)+'</div><p class="muted">Break-even value of one life for fixing to win. The memo used $200,000.</p>'+
-      '<label for="plife">Try a value: <span id="plval">'+money(S.polife)+'</span><input type="range" id="plife" min="100000" max="10000000" step="50000" value="'+S.polife+'"></label><div id="pcalc">'+calcHtml(S.polife)+'</div></div>';
+      '<label for="plife">Try a value: <span id="plval">'+usd(Math.min(1300000,Math.max(100000,S.polife||200000)))+'</span><input type="range" id="plife" min="100000" max="1300000" step="10000" value="'+Math.min(1300000,Math.max(100000,S.polife||200000))+'"></label><div class="histlab"><span>$100,000</span><span>$1,300,000</span></div><div id="pcalc">'+calcHtml(Math.min(1300000,Math.max(100000,S.polife||200000)),true)+'</div></div>';
     h+='<div class="card"><h3>Who kept their duty</h3>'+FACTS.map(function(f){
       var k=0,d=0; RESP.forEach(function(r){var v=r.duty&&r.duty.k&&r.duty.k[f.k]; if(v==='keep')k++; else if(v==='drop')d++;});
       var t=k+d;
@@ -312,8 +344,8 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     h+='<div class="card"><h3>Exit tickets: '+ex.length+'</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
     h+='</div>';
     if(mode==='proj'){
-      var items=[['memo','Memo reveal and revote'],['f1','Duty fact 1: $1,000 per car'],['f2','Duty fact 2: stay quiet or lose the job'],['f3','Duty fact 3: every automaker does it'],['twist','The Schwartz twist']];
-      h+='<div class="card" style="margin-top:16px"><h3>Release to phones</h3>'+(relErr?'<div class="warn">'+esc(relErr)+'</div>':'')+items.map(function(it){return '<div class="release"><span>'+esc(it[1])+'</span><button class="btn '+(REL[it[0]]?'':'ghost')+'" data-act="release" data-val="'+it[0]+'">'+(REL[it[0]]?'Released':'Release')+'</button></div>';}).join('')+
+      var items=[['memo','Memo reveal and revote (opens step 2)'],['util','Open step 3: Utilitarian'],['duty','Open step 4: Duty'],['f1','Duty fact 1: $1,000 per car'],['f2','Duty fact 2: stay quiet or lose the job'],['f3','Duty fact 3: every automaker does it'],['twist','The Schwartz twist'],['virtue','Open step 5: Virtue'],['exit','Open step 6: Exit ticket']];
+      h+='<div class="card" style="margin-top:16px"><h3>Release to phones</h3><p class="small muted">Students cannot move on until you open the next step. They must also vote on steps 1 and 2 and commit to a duty on step 4.</p>'+(relErr?'<div class="warn">'+esc(relErr)+'</div>':'')+items.map(function(it){return '<div class="release"><span>'+esc(it[1])+'</span><button class="btn '+(REL[it[0]]?'':'ghost')+'" data-act="release" data-val="'+it[0]+'">'+(REL[it[0]]?'Released':'Release')+'</button></div>';}).join('')+
       '<p class="small muted" style="margin-top:8px">Start new session clears releases, all responses, and saved answers on student phones.</p><div class="row"><button class="btn" data-act="newsession"'+(db?'':' disabled')+'>'+(newArm?'Click again to clear everything':'Start new session')+'</button><button class="btn ghost" data-act="csv"'+(n?'':' disabled')+'>Export CSV</button>'+
       '<button class="btn ghost" data-act="clear"'+((!db||!n)?' disabled':'')+'>'+(clearArm?'Click again to delete all responses':'Clear responses')+'</button></div></div>';
     }
@@ -343,7 +375,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     var b=ev.target.closest('[data-act]'); if(!b||b.disabled) return;
     var a=b.getAttribute('data-act'), v=b.getAttribute('data-val'), k=b.getAttribute('data-key');
     if(a==='mode'){mode=v; try{history.replaceState(null,'',v==='proj'?'#projector':'#');}catch(e){} if(mode==='proj') subscribeResp(); render();}
-    else if(a==='go'){var t=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); if(t>3&&!S.duty.committed){step=3; gateMsg=true;} else {step=t; gateMsg=false;} render(); window.scrollTo(0,0);}
+    else if(a==='go'){var t=Math.max(0,Math.min(STEPS.length-1,parseInt(v,10))); var mxs=maxStep(); if(t>mxs){step=mxs; gateMsg=true;} else {step=t; gateMsg=false;} render(); window.scrollTo(0,0);}
     else if(a==='vote'){S[k]=v; schedule(); render();}
     else if(a==='cell'){S.ledger[k]=parseInt(v,10); schedule(); render();}
     else if(a==='commit'){S.duty.committed=true; schedule(); render();}
@@ -364,7 +396,8 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     if(ev.type==='input' && el.tagName==='SELECT') return;
     var val=el.value; if(el.getAttribute('data-type')==='num') val=parseFloat(val);
     setPath(S,p,val);
-    if(p==='polife'){ $('#lifeval').textContent=money(val); $('#calcOut').innerHTML=calcHtml(val); }
+    if(p==='polife'){ $('#lifeval').textContent=usd(val); $('#calcOut').innerHTML=calcHtml(val,false); }
+    if(p==='thirdName'){ var tl=(String(val).trim()||'Your option'); var tle=document.querySelectorAll('.thirdLab'); for(var ti=0;ti<tle.length;ti++) tle[ti].textContent=tl; }
     if(p==='virtue.mean') S.virtue.placed=true;
     if(p.indexOf('duty.')===0 && !S.duty.committed){
       var cb=document.querySelector('[data-act="commit"]');
@@ -376,7 +409,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   document.addEventListener('input',onBind);
   document.addEventListener('change',function(ev){ if(ev.target.tagName==='SELECT') onBind(ev); });
   document.addEventListener('input',function(ev){
-    if(ev.target.id==='plife'){ var v=parseFloat(ev.target.value); S.polife=v; $('#plval').textContent=money(v); $('#pcalc').innerHTML=calcHtml(v); }
+    if(ev.target.id==='plife'){ var v=parseFloat(ev.target.value); S.polife=v; $('#plval').textContent=usd(v); $('#pcalc').innerHTML=calcHtml(v,true); }
   });
 
   /* ---------- instructor actions ---------- */
@@ -403,10 +436,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function csvCell(x){x=x==null?'':String(x); return '"'+x.replace(/"/g,'""')+'"';}
   function exportCsv(){
     if(!RESP.length) return;
-    var cols=['name','first vote','vote after memo','third option','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue'];
+    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue'];
     var rows=[cols.map(csvCell).join(',')];
     RESP.forEach(function(r){var d=r.duty||{},k=d.k||{},v=r.virtue||{},e=r.exit||{};
-      rows.push([r.name,r.v0,r.v1,r.third,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v].map(csvCell).join(','));});
+      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v].map(csvCell).join(','));});
     var blob=new Blob([rows.join('\n')],{type:'text/csv'});
     var link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='lens-lab-responses.csv';
     document.body.appendChild(link); link.click(); link.remove();
