@@ -138,7 +138,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   /* ---------- state ---------- */
   function blank(){return {sid:'',name:'',v0:null,v1:null,third:'',thirdName:'',rerun:'',ledger:{},polife:200000,challenge:'',missing:'',
     duty:{pick:'',when:'',will:'',committed:false,k:{},why:{},repl:{}},twist:'',
-    virtue:{pick:'',mean:50,placed:false,first:'',personal:''},exit:{u:'',d:'',v:'',v1:'',v2:'',done:false}};}
+    virtue:{pick:'',pick2:'',mean:50,placed:false,mean2:50,placed2:false,first:'',personal:''},exit:{u:'',d:'',v:'',v1:'',v2:'',done:false}};}
   var S = blank(), REL = {}, RESP = [], SID = '', newArm = false, gateMsg = false;
   var db=null, userCap=null, dl=null, myId=null, canEdit=false, hasState=false, noWrite=false;
   var mode = (location.hash==='#projector')?'proj':'student';
@@ -158,14 +158,17 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function open(k){return solo()||!!REL[k];}
   var STEPKEY=[null,'memo','util','duty','virtue','exit'];
   function stepOpen(i){ return i<=0 ? true : open(STEPKEY[i]); }
-  function reqBlock(i){ if(i===0) return !S.v0; if(i===1) return !S.v1; if(i===3) return !S.duty.committed; return false; }
+  function reqBlock(i){ if(i===0) return !S.v0; if(i===1) return !S.v1; if(i===3) return !S.duty.committed; if(i===4) return !(S.virtue.pick&&S.virtue.pick2&&S.virtue.pick!==S.virtue.pick2); return false; }
   function maxStep(){ var m=0; while(m<STEPS.length-1 && stepOpen(m+1) && !reqBlock(m)) m++; return m; }
   function nextMsg(){
     if(step>=STEPS.length-1) return '';
-    if(reqBlock(step)) return step===0?'Pick Fix it or Ship it to continue.':(step===1?'Vote again to continue.':'Commit to a duty to continue.');
+    if(reqBlock(step)) return step===0?'Pick Fix it or Ship it to continue.':(step===1?'Vote again to continue.':(step===4?'Choose two different virtues to continue.':'Commit to a duty to continue.'));
     if(!stepOpen(step+1)) return 'Wait for your instructor to open the next step.';
     return '';
   }
+  var VICES={Prudence:['Rash: acts without weighing the risk','Paralyzed: never acts, keeps studying'],Justice:['Callous: ignores what people are owed','Vindictive: punishes beyond what is fair'],Courage:['Cowardice: stays silent','Recklessness: goes public with everything'],Temperance:['Gives in to the pressure to hurry','Refuses every trade-off']};
+  function vname(x){return String(x||'').split(' ')[0];}
+  function vslider(id,bind,val,pickFull,num){var n=vname(pickFull), vi=VICES[n]; if(!vi) return ''; return '<div class="stack" style="gap:6px"><strong>'+esc(n)+': where is the right response for the engineer?</strong><input type="range" id="'+id+'" min="0" max="100" value="'+val+'" data-bind="'+bind+'" data-type="num" aria-label="'+esc(n)+' between '+esc(vi[0])+' and '+esc(vi[1])+'"><div class="histlab"><span>'+esc(vi[0])+'</span><span>'+esc(vi[1])+'</span></div></div>';}
   var VNAMES=['Prudence','Justice','Courage','Temperance'];
   function exitOk(){var e=S.exit||{}; return !!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim()&&e.v1&&e.v2&&e.v1!==e.v2);}
   function exitHint(){var e=S.exit||{}; if(!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim())) return 'Fill in all three lines to submit.'; if(!e.v1||!e.v2) return 'Choose two virtues to submit.'; if(e.v1===e.v2) return 'Choose two different virtues to submit.'; return '';}
@@ -292,11 +295,11 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     var v=S.virtue;
     return '<h2>Choosing virtue</h2><p>You are still the engineer. You have now kept or dropped a duty. Virtue asks a different question: what kind of person do your choices make you? Virtue is chosen again and again until it becomes character, and four cardinal virtues give you a checklist.</p>'+
     '<ul class="quotes">'+VIRTUES.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>'+
-    '<label for="vpick">Which virtue did the engineer need most?<select id="vpick" data-bind="virtue.pick"><option value="">Choose one</option>'+VIRTUES.map(function(o){return '<option'+(v.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
-    '<div class="stack" style="gap:6px"><strong>Where is the right response for the engineer?</strong>'+
-    '<input type="range" id="vmean" min="0" max="100" value="'+v.mean+'" data-bind="virtue.mean" data-type="num" aria-label="Position between staying silent and going public">'+
-    '<div class="histlab"><span>Stay silent (cowardice)</span><span>Go public with everything (recklessness)</span></div>'+
-    '<p class="small muted">The mean is not the midpoint. It is the fitting response for this person, this time, and this reason.</p></div>'+
+    '<label for="vpick">First virtue the engineer needed<select id="vpick" data-bind="virtue.pick"><option value="">Choose one</option>'+VIRTUES.map(function(o){return '<option'+(v.pick===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
+    '<label for="vpick2">Second virtue the engineer needed (different from the first)<select id="vpick2" data-bind="virtue.pick2"><option value="">Choose one</option>'+VIRTUES.map(function(o){return '<option'+(v.pick2===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></label>'+
+    (v.pick&&v.pick===v.pick2?'<div class="warn">Choose two different virtues.</div>':'')+
+    (v.pick&&v.pick2&&v.pick!==v.pick2?'<p>For each virtue, place the engineer\'s best response between its two vices. Move each line.</p>'+vslider('vmean','virtue.mean',v.mean,v.pick)+vslider('vmean2','virtue.mean2',v.mean2,v.pick2):'<p class="small muted">Choose two different virtues to see a line to move for each.</p>')+
+    '<p class="small muted">The mean is not the midpoint. It is the fitting response for this person, this time, and this reason.</p>'+
     '<label for="vfirst">Find the first small choice in the story where someone could have chosen differently. What habit did it start?<textarea id="vfirst" data-bind="virtue.first">'+esc(v.first)+'</textarea></label>'+
     '<label for="vpers">Name one small choice you repeat at work or school that builds your character.<textarea id="vpers" data-bind="virtue.personal">'+esc(v.personal)+'</textarea></label>';
   }
@@ -343,10 +346,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
       var t=k+d;
       return '<div class="stack" style="gap:6px"><div class="kv"><span>'+esc(f.t)+'</span><span class="muted small">'+t+'</span></div><div class="bar"><span class="a" style="flex:'+(k||0.0001)+'">'+(k?'Keep '+pct(k,t)+'%':'')+'</span><span class="b" style="flex:'+(d||0.0001)+'">'+(d?'Drop '+pct(d,t)+'%':'')+'</span></div></div>';
     }).join('')+'</div>';
-    var bins=new Array(10).fill(0), placed=0;
-    RESP.forEach(function(r){var v=r.virtue; if(v&&typeof v.mean==='number'&&v.placed){bins[Math.min(9,Math.floor(v.mean/10))]++;placed++;}});
-    var mx=Math.max.apply(null,bins.concat([1]));
-    h+='<div class="card"><h3>Where students put the engineer</h3><div class="hist">'+bins.map(function(c){return '<div style="height:'+Math.max(2,Math.round(100*c/mx))+'%" title="'+c+'"></div>';}).join('')+'</div><div class="histlab"><span>Stay silent</span><span>Go public</span></div><p class="muted small">'+placed+' placed</p></div>';
+    var vb={}; VNAMES.forEach(function(n){vb[n]={b:new Array(10).fill(0),c:0};});
+    RESP.forEach(function(r){var v=r.virtue; if(!v) return; [[v.pick,v.mean,v.placed],[v.pick2,v.mean2,v.placed2]].forEach(function(q){var n=vname(q[0]); if(vb[n]&&q[2]&&typeof q[1]==='number'){vb[n].b[Math.min(9,Math.floor(q[1]/10))]++; vb[n].c++;}});});
+    h+='<div class="card"><h3>Where students put the engineer, by virtue</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+VNAMES.map(function(n){var o=vb[n], m=Math.max.apply(null,o.b.concat([1])), vi=VICES[n];
+      return '<div class="stack" style="gap:4px"><strong class="small">'+esc(n)+'</strong><div class="hist">'+o.b.map(function(c){return '<div style="height:'+Math.max(2,Math.round(100*c/m))+'%" title="'+c+'"></div>';}).join('')+'</div><div class="histlab"><span>'+esc(vi[0].split(':')[0])+'</span><span>'+esc(vi[1].split(':')[0])+'</span></div><p class="muted small">'+o.c+' placed</p></div>';}).join('')+'</div></div>';
     var ex=RESP.filter(function(r){return r.exit&&(r.exit.u||r.exit.d||r.exit.v);}); var nsub=RESP.filter(function(r){return r.exit&&r.exit.done;}).length;
     function quotes(k){return ex.filter(function(r){return r.exit[k];}).slice(0,5).map(function(r){return '<li>'+(k==='v'&&(r.exit.v1||r.exit.v2)?'<strong>'+esc([r.exit.v1,r.exit.v2].filter(Boolean).join(' + '))+':</strong> ':'')+esc(r.exit[k])+'</li>';}).join('')||'<li class="muted">None yet</li>';}
     h+='<div class="card"><h3>Exit tickets: '+nsub+' submitted, '+ex.length+' started</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
@@ -408,6 +411,9 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     if(p==='polife'){ $('#lifeval').textContent=usd(val); $('#calcOut').innerHTML=calcHtml(val,false); }
     if(p==='thirdName'){ var tl=(String(val).trim()||'Your option'); var tle=document.querySelectorAll('.thirdLab'); for(var ti=0;ti<tle.length;ti++) tle[ti].textContent=tl; }
     if(p==='virtue.mean') S.virtue.placed=true;
+    if(p==='virtue.mean2') S.virtue.placed2=true;
+    if(p==='virtue.pick'){S.virtue.placed=false; S.virtue.mean=50;}
+    if(p==='virtue.pick2'){S.virtue.placed2=false; S.virtue.mean2=50;}
     if(p.indexOf('duty.')===0 && !S.duty.committed){
       var cb=document.querySelector('[data-act="commit"]');
       if(cb) cb.disabled=!(String(S.duty.pick||'').trim()&&String(S.duty.when||'').trim()&&String(S.duty.will||'').trim());
@@ -449,10 +455,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function csvCell(x){x=x==null?'':String(x); return '"'+x.replace(/"/g,'""')+'"';}
   function exportCsv(){
     if(!RESP.length) return;
-    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','engineer position','first small choice','personal choice','exit utilitarian','exit duty','exit virtue 1','exit virtue 2','exit virtue reflection','exit submitted'];
+    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','second virtue needed','engineer position','engineer position 2','first small choice','personal choice','exit utilitarian','exit duty','exit virtue 1','exit virtue 2','exit virtue reflection','exit submitted'];
     var rows=[cols.map(csvCell).join(',')];
     RESP.forEach(function(r){var d=r.duty||{},k=d.k||{},v=r.virtue||{},e=r.exit||{};
-      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.placed?v.mean:'',v.first,v.personal,e.u,e.d,e.v1,e.v2,e.v,e.done?'yes':'no'].map(csvCell).join(','));});
+      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.pick2,v.placed?v.mean:'',v.placed2?v.mean2:'',v.first,v.personal,e.u,e.d,e.v1,e.v2,e.v,e.done?'yes':'no'].map(csvCell).join(','));});
     var blob=new Blob([rows.join('\n')],{type:'text/csv'});
     var link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='lens-lab-responses.csv';
     document.body.appendChild(link); link.click(); link.remove();
