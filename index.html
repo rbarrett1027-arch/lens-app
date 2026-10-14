@@ -415,7 +415,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   /* ---------- instructor actions ---------- */
   function pushState(key,prev){
     if(!db) return;
-    db.doc('session/state').set({released:REL,updated:Date.now()}).catch(function(){
+    db.doc('session/state').set({released:REL,updated:Date.now()},{merge:true}).catch(function(){
       REL[key]=prev;
       relErr='That release did not save. Only the page owner or an editor can release. If that is you, reload the page and try again.';
       render();
@@ -464,13 +464,16 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
 
   function startLive(){
     if(started) return; started=true;
-    db.doc('session/state').onSnapshot(function(s){
+    function applyState(s){
       var d=s.exists?(s.data()||{}):{}; var next=d.released||{};
       var changed=JSON.stringify(next)!==JSON.stringify(REL)||!hasState;
       REL=JSON.parse(JSON.stringify(next)); hasState=true;
       SID=d.sid||''; var wiped=syncSid();
       if(wiped||(changed && !(document.activeElement&&document.activeElement.matches('input,textarea,select')))) render();
-    },function(){});
+    }
+    db.doc('session/state').onSnapshot(applyState,function(){});
+    setInterval(function(){ if(document.hidden) return; db.doc('session/state').get().then(applyState).catch(function(){}); },4000);
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden) db.doc('session/state').get().then(applyState).catch(function(){}); });
     function done(){ booted=true; saveStatus='Shared with the class'; render(); }
     if(myId){
       db.doc('responses/'+myId).get().then(function(mine){
