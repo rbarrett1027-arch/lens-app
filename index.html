@@ -158,17 +158,20 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function open(k){return solo()||!!REL[k];}
   var STEPKEY=[null,'memo','util','duty','virtue','exit'];
   function stepOpen(i){ return i<=0 ? true : open(STEPKEY[i]); }
-  function reqBlock(i){ if(i===0) return !S.v0; if(i===1) return !S.v1; if(i===3) return !S.duty.committed; if(i===4) return !(S.virtue.pick&&S.virtue.pick2&&S.virtue.pick!==S.virtue.pick2); return false; }
+  function nameOk(){return !!String(S.name||'').trim();}
+  function reqBlock(i){ if(i===0) return !S.v0||!nameOk(); if(i===1) return !S.v1; if(i===3) return !S.duty.committed; if(i===4) return !(S.virtue.pick&&S.virtue.pick2&&S.virtue.pick!==S.virtue.pick2); return false; }
   function maxStep(){ var m=0; while(m<STEPS.length-1 && stepOpen(m+1) && !reqBlock(m)) m++; return m; }
   function nextMsg(){
     if(step>=STEPS.length-1) return '';
-    if(reqBlock(step)) return step===0?'Pick Fix it or Ship it to continue.':(step===1?'Vote again to continue.':(step===4?'Choose two different virtues to continue.':'Commit to a duty to continue.'));
+    if(reqBlock(step)) return step===0?(!S.v0?'Pick Fix it or Ship it to continue.':'Enter your name to continue.'):(step===1?'Vote again to continue.':(step===4?'Choose two different virtues to continue.':'Commit to a duty to continue.'));
     if(!stepOpen(step+1)) return 'Wait for your instructor to open the next step.';
     return '';
   }
   var VICES={Prudence:['Rash: acts without weighing the risk','Paralyzed: never acts, keeps studying'],Justice:['Callous: ignores what people are owed','Vindictive: punishes beyond what is fair'],Courage:['Cowardice: stays silent','Recklessness: goes public with everything'],Temperance:['Gives in to the pressure to hurry','Refuses every trade-off']};
   function vname(x){return String(x||'').split(' ')[0];}
   function vslider(id,bind,val,pickFull,num){var n=vname(pickFull), vi=VICES[n]; if(!vi) return ''; return '<div class="stack" style="gap:6px"><strong>'+esc(n)+': where is the right response for the engineer?</strong><input type="range" id="'+id+'" min="0" max="100" value="'+val+'" data-bind="'+bind+'" data-type="num" aria-label="'+esc(n)+' between '+esc(vi[0])+' and '+esc(vi[1])+'"><div class="histlab"><span>'+esc(vi[0])+'</span><span>'+esc(vi[1])+'</span></div></div>';}
+  function netOf(L,sfx){var t=0; L=L||{}; HOLDERS.forEach(function(h){t+=L[h[0]+'_'+sfx]||0;}); return t;}
+  function hasLedger(L){L=L||{}; for(var k in L){ if(typeof L[k]==='number') return true; } return false;}
   var VNAMES=['Prudence','Justice','Courage','Temperance'];
   function exitOk(){var e=S.exit||{}; return !!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim()&&e.v1&&e.v2&&e.v1!==e.v2);}
   function exitHint(){var e=S.exit||{}; if(!(String(e.u||'').trim()&&String(e.d||'').trim()&&String(e.v||'').trim())) return 'Fill in all three lines to submit.'; if(!e.v1||!e.v2) return 'Choose two virtues to submit.'; if(e.v1===e.v2) return 'Choose two different virtues to submit.'; return '';}
@@ -208,7 +211,7 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     return '<h2>Gut check</h2>'+
     '<p>Ford can add an $11 part to every Pinto to cut the risk of fuel tank fires in rear-end crashes, or ship the car as designed. You are on the decision team.</p>'+
     choiceRow('vote','v0',S.v0,[['fix','Fix it'],['ship','Ship it'],])+
-    '<label for="name">First name (optional)<input type="text" id="name" data-bind="name" value="'+esc(S.name)+'" autocomplete="off"></label>'+
+    '<label for="name">Your name (required)<input type="text" id="name" data-bind="name" value="'+esc(S.name)+'" placeholder="First and last name" autocomplete="name"></label>'+
     (db&&!noWrite?'':'<p class="small muted">'+(db?'Your answers stay on your device in this view.':'Practice mode. Answers stay on this device.')+'</p>');
   }
   function s1(){
@@ -350,10 +353,20 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     RESP.forEach(function(r){var v=r.virtue; if(!v) return; [[v.pick,v.mean,v.placed],[v.pick2,v.mean2,v.placed2]].forEach(function(q){var n=vname(q[0]); if(vb[n]&&q[2]&&typeof q[1]==='number'){vb[n].b[Math.min(9,Math.floor(q[1]/10))]++; vb[n].c++;}});});
     h+='<div class="card"><h3>Where students put the engineer, by virtue</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+VNAMES.map(function(n){var o=vb[n], m=Math.max.apply(null,o.b.concat([1])), vi=VICES[n];
       return '<div class="stack" style="gap:4px"><strong class="small">'+esc(n)+'</strong><div class="hist">'+o.b.map(function(c){return '<div style="height:'+Math.max(2,Math.round(100*c/m))+'%" title="'+c+'"></div>';}).join('')+'</div><div class="histlab"><span>'+esc(vi[0].split(':')[0])+'</span><span>'+esc(vi[1].split(':')[0])+'</span></div><p class="muted small">'+o.c+' placed</p></div>';}).join('')+'</div></div>';
+    var CH=['The value of a life','The number of deaths and injuries','The cost per car','Who counts as affected'], cc={}, ct=0; CH.forEach(function(c){cc[c]=0;});
+    RESP.forEach(function(r){ if(cc.hasOwnProperty(r.challenge)){cc[r.challenge]++; ct++;} });
+    var cmax=Math.max.apply(null,CH.map(function(c){return cc[c];}).concat([1]));
+    h+='<div class="card"><h3>The number students would challenge first</h3><div class="stack" style="gap:10px">'+CH.map(function(c){return '<div class="stack" style="gap:4px"><div class="kv"><span>'+esc(c)+'</span><span class="muted small">'+cc[c]+(ct?' ('+pct(cc[c],ct)+'%)':'')+'</span></div><div class="bar"><span class="a" style="flex:'+(cc[c]||0.0001)+';max-width:'+Math.round(100*cc[c]/cmax)+'%"></span></div></div>';}).join('')+'</div><p class="muted small">'+ct+' answered</p></div>';
     var ex=RESP.filter(function(r){return r.exit&&(r.exit.u||r.exit.d||r.exit.v);}); var nsub=RESP.filter(function(r){return r.exit&&r.exit.done;}).length;
     function quotes(k){return ex.filter(function(r){return r.exit[k];}).slice(0,5).map(function(r){return '<li>'+(k==='v'&&(r.exit.v1||r.exit.v2)?'<strong>'+esc([r.exit.v1,r.exit.v2].filter(Boolean).join(' + '))+':</strong> ':'')+esc(r.exit[k])+'</li>';}).join('')||'<li class="muted">None yet</li>';}
     h+='<div class="card"><h3>Exit tickets: '+nsub+' submitted, '+ex.length+' started</h3><strong class="small">Utilitarian</strong><ul class="quotes">'+quotes('u')+'</ul><strong class="small">Duty</strong><ul class="quotes">'+quotes('d')+'</ul><strong class="small">Virtue</strong><ul class="quotes">'+quotes('v')+'</ul></div>';
     h+='</div>';
+    var lr=RESP.filter(function(r){return hasLedger(r.ledger);}).sort(function(x,y){return String(x.name||'').toLowerCase()<String(y.name||'').toLowerCase()?-1:1;});
+    h+='<div class="card" style="margin-top:16px"><h3>Utilitarian scores by student</h3>'+(lr.length?'<div class="tablewrap"><table><tr><th>Name</th><th class="num">Fix</th><th class="num">Ship</th><th>Their option</th><th class="num">Score</th><th>Highest</th></tr>'+lr.map(function(r){
+      var f=netOf(r.ledger,'fix'), sh=netOf(r.ledger,'ship'), t=netOf(r.ledger,'third'), th=false; for(var k in r.ledger){ if(/_third$/.test(k)&&typeof r.ledger[k]==='number') th=true; }
+      var best=[['Fix',f],['Ship',sh]]; if(th) best.push([(String(r.thirdName||'').trim()||'Their option'),t]);
+      var mxv=Math.max.apply(null,best.map(function(q){return q[1];})), wn=best.filter(function(q){return q[1]===mxv;}).map(function(q){return q[0];});
+      return '<tr><td>'+esc(String(r.name||'').trim()||'(no name)')+'</td><td class="num">'+f+'</td><td class="num">'+sh+'</td><td>'+esc(String(r.thirdName||'').trim()||(th?'Their option':''))+'</td><td class="num">'+(th?t:'')+'</td><td>'+esc(wn.join(' = '))+'</td></tr>';}).join('')+'</table></div>':'<p class="muted small">No ledgers yet.</p>')+'<p class="muted small">Scores add up each group rated from -2 to +2. Unrated boxes count as 0.</p></div>';
     if(mode==='proj'){
       var items=[['memo','Memo reveal and revote (opens step 2)'],['util','Open step 3: Utilitarian'],['duty','Open step 4: Duty'],['f1','Duty fact 1: $1,000 per car'],['f2','Duty fact 2: stay quiet or lose the job'],['f3','Duty fact 3: every automaker does it'],['twist','The Schwartz twist'],['virtue','Open step 5: Virtue'],['exit','Open step 6: Exit ticket']];
       h+='<div class="card" style="margin-top:16px"><h3>Release to phones</h3><p class="small muted">Students cannot move on until you open the next step. They must also vote on steps 1 and 2 and commit to a duty on step 4.</p>'+(relErr?'<div class="warn">'+esc(relErr)+'</div>':'')+items.map(function(it){return '<div class="release"><span>'+esc(it[1])+'</span><button class="btn '+(REL[it[0]]?'':'ghost')+'" data-act="release" data-val="'+it[0]+'">'+(REL[it[0]]?'Released':'Release')+'</button></div>';}).join('')+
@@ -410,6 +423,12 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
     setPath(S,p,val);
     if(p==='polife'){ $('#lifeval').textContent=usd(val); $('#calcOut').innerHTML=calcHtml(val,false); }
     if(p==='thirdName'){ var tl=(String(val).trim()||'Your option'); var tle=document.querySelectorAll('.thirdLab'); for(var ti=0;ti<tle.length;ti++) tle[ti].textContent=tl; }
+    if(p==='name' && step===0){
+      var nb=document.querySelector('.nav [data-act="go"][data-val="1"]'), nm=nextMsg();
+      if(nb) nb.disabled=!!nm;
+      var nh=document.getElementById('navhint');
+      if(nm){ if(!nh){ nh=document.createElement('p'); nh.id='navhint'; nh.className='small muted'; nh.style.margin='0'; var pn=document.querySelector('.panel'); if(pn) pn.appendChild(nh);} nh.textContent=nm; } else if(nh){ nh.parentNode.removeChild(nh); }
+    }
     if(p==='virtue.mean') S.virtue.placed=true;
     if(p==='virtue.mean2') S.virtue.placed2=true;
     if(p==='virtue.pick'){S.virtue.placed=false; S.virtue.mean=50;}
@@ -455,10 +474,10 @@ footer{margin-top:20px;font-size:12px;color:var(--muted)}
   function csvCell(x){x=x==null?'':String(x); return '"'+x.replace(/"/g,'""')+'"';}
   function exportCsv(){
     if(!RESP.length) return;
-    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','second virtue needed','engineer position','engineer position 2','first small choice','personal choice','exit utilitarian','exit duty','exit virtue 1','exit virtue 2','exit virtue reflection','exit submitted'];
+    var cols=['name','first vote','vote after memo','third option name','third option description','rerun reflection','net fix','net ship','net third option','break-even challenge','missing from ledger','duty','when','i will','fact 1','fact 2','fact 3','twist reflection','virtue needed','second virtue needed','engineer position','engineer position 2','first small choice','personal choice','exit utilitarian','exit duty','exit virtue 1','exit virtue 2','exit virtue reflection','exit submitted'].concat((function(){var o=[]; HOLDERS.forEach(function(h){['Fix','Ship','Third'].forEach(function(x){o.push('ledger: '+h[1]+' '+x);});}); return o;})());
     var rows=[cols.map(csvCell).join(',')];
     RESP.forEach(function(r){var d=r.duty||{},k=d.k||{},v=r.virtue||{},e=r.exit||{};
-      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.pick2,v.placed?v.mean:'',v.placed2?v.mean2:'',v.first,v.personal,e.u,e.d,e.v1,e.v2,e.v,e.done?'yes':'no'].map(csvCell).join(','));});
+      rows.push([r.name,r.v0,r.v1,r.thirdName,r.third,r.rerun,netOf(r.ledger,'fix'),netOf(r.ledger,'ship'),netOf(r.ledger,'third'),r.challenge,r.missing,d.pick,d.when,d.will,k.f1,k.f2,k.f3,r.twist,v.pick,v.pick2,v.placed?v.mean:'',v.placed2?v.mean2:'',v.first,v.personal,e.u,e.d,e.v1,e.v2,e.v,e.done?'yes':'no'].concat((function(){var o=[],L=r.ledger||{}; HOLDERS.forEach(function(h){['fix','ship','third'].forEach(function(x){var q=L[h[0]+'_'+x]; o.push(typeof q==='number'?q:'');});}); return o;})()).map(csvCell).join(','));});
     var blob=new Blob([rows.join('\n')],{type:'text/csv'});
     var link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='lens-lab-responses.csv';
     document.body.appendChild(link); link.click(); link.remove();
